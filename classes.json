@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Car",
+    "color": "#e74c3c"
+  },
+  {
+    "name": "Bike",
+    "color": "#3498db"
+  },
+  {
+    "name": "Bus",
+    "color": "#f1c40f"
+  },
+  {
+    "name": "Truck",
+    "color": "#9b59b6"
+  },
+  {
+    "name": "Auto",
+    "color": "#1abc9c"
+  },
+  {
+    "name": "Person",
+    "color": "#2ecc71"
+  }
+]

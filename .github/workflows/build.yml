@@ -1,0 +1,100 @@
+name: Build and Release
+
+# This runs automatically whenever you push a tag like "v1.0.0".
+# It builds the app on GitHub's own Windows and Ubuntu machines (you don't
+# need either OS locally) and attaches the results to a GitHub Release.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:  # lets you also trigger this manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install PyQt5 pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --windowed --name TrafficLabelStudio main.py
+
+      - name: Rename output
+        run: |
+          Rename-Item -Path "dist\TrafficLabelStudio.exe" -NewName "TrafficLabelStudio-Windows.exe"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: dist/TrafficLabelStudio-Windows.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies for PyQt5
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libegl1 libxkbcommon0 libdbus-1-3
+
+      - name: Install dependencies
+        run: |
+          pip install PyQt5 pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --windowed --name TrafficLabelStudio main.py
+
+      - name: Package as tar.gz
+        run: |
+          cd dist
+          chmod +x TrafficLabelStudio
+          tar -czf TrafficLabelStudio-Linux.tar.gz TrafficLabelStudio
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: dist/TrafficLabelStudio-Linux.tar.gz
+
+  release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: release-files
+
+      - name: Download Linux build
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+          path: release-files
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-files/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
