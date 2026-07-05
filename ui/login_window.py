@@ -5,6 +5,9 @@ Login / Register dialog shown before the main annotation tool opens.
 On successful login, self.username holds the logged-in user's name and
 the dialog is accepted (QDialog.Accepted) — main.py checks this before
 launching MainWindow.
+
+Login uses the same Supabase account as the AnnotateX website — the
+same username/email/password works in both places.
 """
 
 from PyQt5.QtCore import Qt
@@ -43,8 +46,8 @@ QPushButton#link:hover { background-color: transparent; color: #6fc0f5; }
 class LoginWindow(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Traffic Label Studio — Login")
-        self.setFixedSize(380, 420)
+        self.setWindowTitle("AnnotateX — Login")
+        self.setFixedSize(380, 480)
         self.setStyleSheet(DARK_STYLESHEET)
 
         self.username: str = ""
@@ -62,7 +65,7 @@ class LoginWindow(QDialog):
         self.title_label.setObjectName("title")
         layout.addWidget(self.title_label)
 
-        self.subtitle_label = QLabel("Log in to Traffic Label Studio")
+        self.subtitle_label = QLabel("Log in to AnnotateX")
         self.subtitle_label.setObjectName("subtitle")
         layout.addWidget(self.subtitle_label)
 
@@ -72,6 +75,18 @@ class LoginWindow(QDialog):
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Enter username")
         layout.addWidget(self.username_input)
+
+        layout.addSpacing(8)
+
+        # Email — only shown/required in register mode, since Supabase
+        # authenticates by email under the hood.
+        self.email_label = QLabel("Email")
+        layout.addWidget(self.email_label)
+        self.email_input = QLineEdit()
+        self.email_input.setPlaceholderText("Enter email")
+        layout.addWidget(self.email_input)
+        self.email_label.hide()
+        self.email_input.hide()
 
         layout.addSpacing(8)
 
@@ -119,16 +134,20 @@ class LoginWindow(QDialog):
 
         if self.mode == "register":
             self.title_label.setText("Create account")
-            self.subtitle_label.setText("Register a new username and password")
+            self.subtitle_label.setText("Register a new username, email and password")
             self.submit_button.setText("Register")
             self.toggle_label.setText("Already have an account?")
             self.toggle_button.setText("Log In")
+            self.email_label.show()
+            self.email_input.show()
         else:
             self.title_label.setText("Welcome back")
-            self.subtitle_label.setText("Log in to Traffic Label Studio")
+            self.subtitle_label.setText("Log in to AnnotateX")
             self.submit_button.setText("Log In")
             self.toggle_label.setText("Don't have an account?")
             self.toggle_button.setText("Register")
+            self.email_label.hide()
+            self.email_input.hide()
 
     def _set_message(self, text: str, error: bool):
         self.message_label.setText(text)
@@ -148,7 +167,8 @@ class LoginWindow(QDialog):
             else:
                 self._set_message(result.message, error=True)
         else:
-            result = register_user(username, password)
+            email = self.email_input.text().strip()
+            result = register_user(username, email, password)
             if result.success:
                 self._set_message(
                     "Account created! You can now log in.", error=False)

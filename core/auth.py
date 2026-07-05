@@ -1,111 +1,96 @@
 """
 core/auth.py
-=============
-Simple local authentication: register + login backed by a SQLite database
-stored next to the app (users.db). Passwords are never stored in plain
-text — each password is hashed with PBKDF2-HMAC-SHA256 + a random salt
-(both from Python's stdlib, no extra install needed).
+====================
+Cloud authentication via Supabase — shared between this desktop app and
+the AnnotateX website. Registering or logging in here uses the exact
+same account as the website: same username, same password, same account.
+
+Requires the supabase python package:
+    pip install supabase --break-system-packages
+    (on Windows, usually just: pip install supabase)
 """
 
-import os
-import sqlite3
-import hashlib
-import secrets
-from dataclasses import dataclass
-from typing import Optional
+from supabase import create_client, Client
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "users.db")
+# Public project URL + publishable key (safe to keep in client code —
+# access to data is controlled by Row Level Security policies on the
+# "profiles" table in Supabase, not by hiding this key).
+SUPABASE_URL = "https://fczzurqvafiiabafwecc.supabase.co"
+SUPABASE_KEY = "sb_publishable_yv7Dj-Ds9L_L4jQJFq-yww_A5_jgxS_"
 
-PBKDF2_ITERATIONS = 200_000
+_supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-@dataclass
 class AuthResult:
-    success: bool
-    message: str
+    def __init__(self, success: bool, message: str):
+        self.success = success
+        self.message = message
 
 
-def _get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            username TEXT PRIMARY KEY,
-            salt TEXT NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    return conn
+def register_user(username: str, email: str, password: str) -> AuthResult:
+    """Create a new account. Requires username + email + password because
+    Supabase authenticates by email under the hood; the username is stored
+    alongside it in the 'profiles' table so people can still log in with
+    just a username (see login_user below)."""
+    username = (username or "").strip()
+    email = (email or "").strip()
 
-
-def _hash_password(password: str, salt: bytes) -> str:
-    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PBKDF2_ITERATIONS)
-    return dk.hex()
-
-
-def register_user(username: str, password: str) -> AuthResult:
-    username = username.strip()
-
-    if not username or not password:
-        return AuthResult(False, "Username and password cannot be empty.")
     if len(username) < 3:
-        return AuthResult(False, "Username must be at least 3 characters.")
+        return AuthResult(False, "Username must be at least 3 characters")
+    if not email or "@" not in email:
+        return AuthResult(False, "Please enter a valid email address")
     if len(password) < 4:
-        return AuthResult(False, "Password must be at least 4 characters.")
+        return AuthResult(False, "Password must be at least 4 characters")
 
-    conn = _get_connection()
     try:
-        existing = conn.execute(
-            "SELECT 1 FROM users WHERE username = ?", (username,)
-        ).fetchone()
-        if existing:
-            return AuthResult(False, "That username is already taken.")
-
-        salt = secrets.token_bytes(16)
-        password_hash = _hash_password(password, salt)
-
-        conn.execute(
-            "INSERT INTO users (username, salt, password_hash) VALUES (?, ?, ?)",
-            (username, salt.hex(), password_hash),
+        existing = (
+            _supabase.table("profiles")
+            .select("username")
+            .eq("username", username)
+            .execute()
         )
-        conn.commit()
-        return AuthResult(True, "Account created successfully.")
-    finally:
-        conn.close()
+        if existing.data:
+            return AuthResult(False, "Username is already taken")
+
+        result = _supabase.auth.sign_up({"email": email, "password": password})
+        user = result.user
+        if user is None:
+            return AuthResult(False, "Registration failed. Please try again.")
+
+        _supabase.table("profiles").insert(
+            {"id": user.id, "username": username, "email": email}
+        ).execute()
+
+        return AuthResult(True, "Account created successfully!")
+    except Exception as e:
+        msg = str(e)
+        if "already registered" in msg.lower() or "duplicate" in msg.lower():
+            return AuthResult(False, "This email is already registered")
+        return AuthResult(False, f"Registration failed: {msg}")
 
 
 def login_user(username: str, password: str) -> AuthResult:
-    username = username.strip()
+    """Look up the email tied to this username, then authenticate with
+    Supabase using that email + password."""
+    username = (username or "").strip()
 
-    if not username or not password:
-        return AuthResult(False, "Username and password cannot be empty.")
-
-    conn = _get_connection()
     try:
-        row = conn.execute(
-            "SELECT salt, password_hash FROM users WHERE username = ?", (username,)
-        ).fetchone()
-        if row is None:
-            return AuthResult(False, "No account found with that username.")
+        lookup = (
+            _supabase.table("profiles")
+            .select("email")
+            .eq("username", username)
+            .execute()
+        )
+        if not lookup.data:
+            return AuthResult(False, "User not found")
 
-        salt_hex, stored_hash = row
-        salt = bytes.fromhex(salt_hex)
-        attempted_hash = _hash_password(password, salt)
+        email = lookup.data[0]["email"]
+        result = _supabase.auth.sign_in_with_password(
+            {"email": email, "password": password}
+        )
+        if result.user is None:
+            return AuthResult(False, "Incorrect password")
 
-        if secrets.compare_digest(attempted_hash, stored_hash):
-            return AuthResult(True, "Login successful.")
-        return AuthResult(False, "Incorrect password.")
-    finally:
-        conn.close()
-
-
-def user_exists(username: str) -> bool:
-    conn = _get_connection()
-    try:
-        row = conn.execute(
-            "SELECT 1 FROM users WHERE username = ?", (username.strip(),)
-        ).fetchone()
-        return row is not None
-    finally:
-        conn.close()
+        return AuthResult(True, "Login successful")
+    except Exception:
+        return AuthResult(False, "Incorrect username or password")

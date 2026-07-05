@@ -3,455 +3,1415 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Traffic Label Studio — Annotate. Train. Ship.</title>
-<meta name="description" content="A free bounding-box and polygon annotation tool built for traffic AI datasets. Download for Windows or Linux.">
+<title>Traffic Label Studio</title>
+
+<!-- ============================================================
+     FONTS: Space Grotesk (display/numbers) + Inter (UI/body)
+     ============================================================ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Lucide icons (lightweight, tree-shakeable, no build step needed) -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+
 <style>
-  :root {
-    --asphalt: #121517;
-    --asphalt-2: #1a1e21;
-    --panel: #1e1e1e;
-    --line: #2a2f34;
-    --lane-yellow: #f4c430;
-    --signal-green: #3aa76d;
-    --signal-red: #e6553a;
-    --signal-blue: #3a8de6;
-    --concrete: #9aa0a6;
-    --paper: #f2f1ea;
-  }
+/* ==================================================================
+   1. DESIGN TOKENS
+   Palette + typography from the design brief, kept as CSS variables
+   so every value below traces back to a single source of truth.
+   ================================================================== */
+:root {
+  /* Brand palette (as specified) */
+  --primary: #6366F1;
+  --primary-2: #818CF8;
+  --secondary: #06B6D4;
+  --accent: #F59E0B;
+  --success: #22C55E;
+  --danger: #EF4444;
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  /* Surfaces */
+  --bg: #0B0F19;
+  --bg-soft: #0E1320;
+  --card: #111827;
+  --card-2: #151B2B;
+  --glass: rgba(17, 24, 39, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.07);
 
-  html { scroll-behavior: smooth; }
+  /* Text */
+  --text: #F1F3F9;
+  --text-dim: #9CA3B8;
+  --text-faint: #6B7386;
 
-  body {
-    background: var(--asphalt);
-    color: var(--paper);
-    font-family: 'Inter', sans-serif;
-    line-height: 1.5;
-    overflow-x: hidden;
-  }
+  /* Radii & shadow */
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --shadow-soft: 0 8px 30px rgba(0,0,0,0.35);
+  --shadow-lift: 0 24px 60px rgba(0,0,0,0.5);
+  --shadow-glow-primary: 0 0 0 1px rgba(99,102,241,0.35), 0 12px 40px rgba(99,102,241,0.25);
 
-  h1, h2, h3, .display {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 0.01em;
-    line-height: 0.95;
-  }
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 
-  .mono { font-family: 'JetBrains Mono', monospace; }
+/* ==================================================================
+   2. RESET & BASE
+   ================================================================== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 
-  a { color: inherit; text-decoration: none; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  line-height: 1.5;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
 
-  .wrap {
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: 0 28px;
-  }
+h1, h2, h3, h4 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
 
-  /* ---------------- Nav ---------------- */
-  nav {
-    position: sticky; top: 0; z-index: 50;
-    background: rgba(18,21,23,0.85);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--line);
-  }
-  nav .wrap {
-    display: flex; align-items: center; justify-content: space-between;
-    height: 64px;
-  }
-  .logo {
-    display: flex; align-items: center; gap: 10px;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 900; font-size: 20px; letter-spacing: 0.02em;
-    text-transform: uppercase;
-  }
-  .logo-mark {
-    width: 22px; height: 22px; border: 2.5px solid var(--lane-yellow);
-    border-radius: 4px; position: relative; flex-shrink: 0;
-  }
-  .logo-mark::after {
-    content: ""; position: absolute; inset: 5px;
-    border: 1.5px dashed var(--lane-yellow); border-radius: 2px;
-  }
-  .nav-cta {
-    font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500;
-    background: var(--lane-yellow); color: var(--asphalt);
-    padding: 8px 16px; border-radius: 3px;
-  }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 28px; position: relative; z-index: 1; }
 
-  /* ---------------- Hero ---------------- */
-  header.hero {
-    padding: 88px 0 40px;
-    position: relative;
-  }
-  .eyebrow {
-    font-family: 'JetBrains Mono', monospace; font-size: 13px;
-    color: var(--lane-yellow); letter-spacing: 0.08em; text-transform: uppercase;
-    display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
-  }
-  .eyebrow::before {
-    content: ""; width: 26px; height: 2px; background: var(--lane-yellow);
-  }
-  .hero h1 {
-    font-size: clamp(44px, 7vw, 84px);
-    max-width: 900px;
-  }
-  .hero h1 .accent { color: var(--lane-yellow); }
-  .hero p.sub {
-    font-size: 19px; color: var(--concrete); max-width: 560px;
-    margin: 22px 0 36px; font-weight: 400;
-  }
+/* Visible keyboard focus everywhere (accessibility floor) */
+:focus-visible {
+  outline: 2px solid var(--primary-2);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
 
-  .download-row {
-    display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
-  }
-  .btn {
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 15px 24px; border-radius: 6px;
-    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 15px;
-    border: 1.5px solid var(--line);
-    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-  }
-  .btn:hover { transform: translateY(-2px); }
-  .btn-primary {
-    background: var(--lane-yellow); color: var(--asphalt); border-color: var(--lane-yellow);
-  }
-  .btn-primary:hover { background: #ffd54d; }
-  .btn-secondary {
-    background: transparent; color: var(--paper); border-color: var(--line);
-  }
-  .btn-secondary:hover { border-color: var(--concrete); }
-  .btn .sub-label {
-    display: block; font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; font-weight: 400; opacity: 0.75; margin-top: 1px;
-  }
-  .btn svg { flex-shrink: 0; }
+/* Respect reduced motion: decorative infinite animations only run
+   when the user hasn't asked to reduce motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .motion-safe-float { animation: floatBlob 22s ease-in-out infinite; }
+  .signal-pulse { animation: signalTravel 2.6s linear infinite; }
+  .logo-mark { animation: pulseSoft 2.4s ease-in-out infinite; }
+}
 
-  .detected-note {
-    font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--concrete);
-    margin-top: 14px;
-  }
-  .detected-note strong { color: var(--signal-green); }
+/* ==================================================================
+   3. AURORA BACKGROUND
+   Signature ambient layer: three soft blurred blobs in the brand
+   colors, drifting slowly behind glass panels.
+   ================================================================== */
+.aurora {
+  position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+}
+.aurora span {
+  position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.35;
+}
+.aurora .b1 { width: 520px; height: 520px; background: var(--primary); top: -160px; left: -120px; }
+.aurora .b2 { width: 460px; height: 460px; background: var(--secondary); bottom: -140px; right: -100px; }
+.aurora .b3 { width: 380px; height: 380px; background: var(--accent); top: 40%; left: 55%; opacity: 0.18; }
 
-  /* ---------------- Annotation demo panel ---------------- */
-  .demo-panel {
-    margin-top: 56px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 30px 80px -30px rgba(0,0,0,0.7);
-  }
-  .demo-titlebar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 12px 16px; background: #232526; border-bottom: 1px solid var(--line);
-  }
-  .demo-titlebar .dot { width: 10px; height: 10px; border-radius: 50%; }
-  .demo-titlebar .dot:nth-child(1) { background: #e6553a; }
-  .demo-titlebar .dot:nth-child(2) { background: #f4c430; }
-  .demo-titlebar .dot:nth-child(3) { background: #3aa76d; }
-  .demo-titlebar span.mono {
-    margin-left: 10px; font-size: 12px; color: var(--concrete);
-  }
-  .demo-body { padding: 18px; }
-  .demo-body svg { width: 100%; height: auto; display: block; }
+@keyframes floatBlob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -40px) scale(1.08); }
+  66% { transform: translate(-25px, 25px) scale(0.96); }
+}
 
-  /* bounding box draw-in animation */
-  .box-rect {
-    stroke-dasharray: 500;
-    stroke-dashoffset: 500;
-    animation: draw 0.9s ease forwards;
-  }
-  @keyframes draw { to { stroke-dashoffset: 0; } }
+/* ==================================================================
+   4. SIGNATURE ELEMENT — the "signal line"
+   A thin gradient rail with a traveling glow, echoing both the
+   traffic-signal domain and "progress in motion".
+   ================================================================== */
+.signal-line {
+  position: relative; height: 2px; width: 64px; margin: 18px 0 0;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  border-radius: 2px; overflow: visible;
+}
+.signal-pulse {
+  position: absolute; top: 50%; left: 0; width: 8px; height: 8px;
+  background: var(--text); border-radius: 50%;
+  box-shadow: 0 0 12px 3px rgba(129,140,248,0.9);
+  transform: translateY(-50%);
+}
+@keyframes signalTravel {
+  0% { left: 0; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
 
-  .tag-group { opacity: 0; animation: fadeUp 0.5s ease forwards; }
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+@keyframes pulseSoft { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+@keyframes checkPop { 0% { transform: scale(0); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes shimmer { 0% { background-position: -300px 0; } 100% { background-position: 300px 0; } }
 
-  /* ---------------- Spec sheet features ---------------- */
-  section.specs { padding: 96px 0; }
-  .section-head { margin-bottom: 44px; }
-  .section-head .eyebrow { margin-bottom: 14px; }
-  .section-head h2 { font-size: clamp(32px, 4vw, 48px); max-width: 640px; }
+/* ==================================================================
+   Glass surface utility — reused by nav, cards, modals
+   ================================================================== */
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid var(--glass-border);
+}
 
-  .spec-grid {
-    border-top: 1px solid var(--line);
-  }
-  .spec-row {
-    display: grid; grid-template-columns: 44px 1fr 2fr;
-    gap: 24px; padding: 22px 0; border-bottom: 1px solid var(--line);
-    align-items: baseline;
-  }
-  .spec-row .num {
-    font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--lane-yellow);
-  }
-  .spec-row .label {
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-    text-transform: uppercase; font-size: 19px; letter-spacing: 0.01em;
-  }
-  .spec-row .desc { color: var(--concrete); font-size: 15px; max-width: 560px; }
+/* ==================================================================
+   5. AUTH PAGE
+   ================================================================== */
+.auth-page {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 40px 20px; position: relative; z-index: 1;
+}
+.auth-wrapper {
+  display: grid; grid-template-columns: 1.1fr 1fr; gap: 64px;
+  width: 100%; max-width: 1040px; align-items: center;
+}
+@media (max-width: 900px) { .auth-wrapper { grid-template-columns: 1fr; gap: 40px; } }
 
-  /* ---------------- Download section ---------------- */
-  section.downloads { padding: 0 0 100px; }
-  .dl-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
-  }
-  @media (max-width: 720px) { .dl-grid { grid-template-columns: 1fr; } }
+.auth-hero { animation: fadeUp 0.7s var(--ease-out) 0.05s backwards; }
+.brand-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 28px;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px;
+  color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.logo-mark {
+  width: 22px; height: 22px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  box-shadow: 0 0 18px rgba(99,102,241,0.55);
+}
 
-  .dl-card {
-    background: var(--asphalt-2); border: 1px solid var(--line);
-    border-radius: 10px; padding: 32px;
-  }
-  .dl-card .os-icon { margin-bottom: 18px; }
-  .dl-card h3 {
-    font-size: 28px; margin-bottom: 8px;
-  }
-  .dl-card .req {
-    font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--concrete);
-    margin-bottom: 22px;
-  }
-  .dl-card .btn { width: 100%; justify-content: center; }
-  .dl-card .steps {
-    margin-top: 20px; padding-top: 20px; border-top: 1px dashed var(--line);
-  }
-  .dl-card .steps li {
-    list-style: none; font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
-    color: var(--concrete); padding: 5px 0; display: flex; gap: 10px;
-  }
-  .dl-card .steps li::before { content: "›"; color: var(--lane-yellow); }
+.auth-hero h1 {
+  font-size: clamp(34px, 5vw, 52px);
+  background: linear-gradient(135deg, #fff 30%, var(--primary-2) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.auth-hero p {
+  font-size: 16px; color: var(--text-dim); margin-top: 20px; max-width: 440px; line-height: 1.7;
+}
 
-  /* ---------------- Footer ---------------- */
-  footer {
-    border-top: 1px solid var(--line); padding: 32px 0;
-  }
-  footer .wrap {
-    display: flex; justify-content: space-between; align-items: center;
-    flex-wrap: wrap; gap: 12px;
-  }
-  footer .mono { font-size: 12.5px; color: var(--concrete); }
+.trust-row { display: flex; gap: 28px; margin-top: 40px; }
+.trust-item { display: flex; flex-direction: column; gap: 2px; }
+.trust-item .num { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; color: var(--text); }
+.trust-item .lbl { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; }
 
-  @media (max-width: 640px) {
-    .spec-row { grid-template-columns: 1fr; gap: 6px; }
-    .spec-row .num { display: none; }
-  }
+/* Auth card */
+.auth-form-wrapper { animation: fadeUp 0.7s var(--ease-out) 0.15s backwards; }
+.auth-card {
+  border-radius: var(--r-xl);
+  padding: 40px;
+  box-shadow: var(--shadow-lift);
+}
+
+.form-toggle {
+  display: flex; margin-bottom: 28px; background: rgba(255,255,255,0.04);
+  border-radius: var(--r-md); padding: 4px; border: 1px solid var(--line);
+}
+.form-toggle button {
+  flex: 1; padding: 11px; border: none; background: transparent;
+  color: var(--text-dim); font-weight: 600; cursor: pointer;
+  transition: all 0.35s var(--ease-spring); border-radius: 10px; font-size: 14px;
+}
+.form-toggle button.active {
+  background: linear-gradient(135deg, var(--primary), #4f52d9);
+  color: #fff; box-shadow: 0 6px 16px rgba(99,102,241,0.4);
+}
+
+/* Floating-label fields (CSS-only, no JS required) */
+.field { position: relative; margin-bottom: 20px; }
+.field input {
+  width: 100%; padding: 18px 16px 8px; background: rgba(255,255,255,0.03);
+  border: 1.5px solid var(--line); border-radius: var(--r-md); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: 14.5px; transition: all 0.25s var(--ease-out);
+}
+.field.has-toggle input { padding-right: 44px; }
+.field input:focus {
+  outline: none; border-color: var(--primary-2);
+  box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+  background: rgba(99,102,241,0.06);
+}
+.field label {
+  position: absolute; left: 16px; top: 17px; color: var(--text-faint);
+  font-size: 14.5px; pointer-events: none; transition: all 0.2s var(--ease-out);
+  transform-origin: left top;
+}
+.field input:focus ~ label,
+.field input:not(:placeholder-shown) ~ label {
+  transform: translateY(-9px) scale(0.78); color: var(--primary-2); font-weight: 600;
+}
+
+.pw-toggle {
+  position: absolute; right: 6px; top: 6px; bottom: 6px; width: 36px;
+  background: transparent; border: none; color: var(--text-faint); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; border-radius: 8px;
+  transition: color 0.2s;
+}
+.pw-toggle:hover { color: var(--primary-2); }
+.pw-toggle svg { width: 18px; height: 18px; }
+
+/* Password strength meter */
+.pw-strength { margin: -8px 0 20px; display: none; }
+.pw-strength.show { display: block; animation: fadeUp 0.3s var(--ease-out); }
+.pw-strength-track {
+  height: 4px; border-radius: 2px; background: rgba(255,255,255,0.06); overflow: hidden;
+}
+.pw-strength-fill {
+  height: 100%; width: 0%; border-radius: 2px;
+  transition: width 0.35s var(--ease-out), background 0.35s;
+}
+.pw-strength-label {
+  font-size: 11.5px; margin-top: 6px; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+}
+
+.btn-primary {
+  width: 100%; padding: 15px; border: none; border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--primary), #4f52d9);
+  color: #fff; font-weight: 700; font-size: 15px; cursor: pointer;
+  transition: all 0.3s var(--ease-spring); position: relative; overflow: hidden;
+  box-shadow: 0 10px 28px rgba(99,102,241,0.35);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(99,102,241,0.45); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary.is-loading { color: transparent; pointer-events: none; }
+.btn-primary.is-loading::after {
+  content: ""; position: absolute; width: 18px; height: 18px; top: 50%; left: 50%;
+  margin: -9px 0 0 -9px; border: 2.5px solid rgba(255,255,255,0.35);
+  border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Status messages with entrance/attention animation */
+.msg-error, .msg-success {
+  padding: 13px 16px; border-radius: var(--r-sm); margin-bottom: 18px;
+  font-size: 13.5px; display: flex; align-items: center; gap: 8px;
+  animation: fadeUp 0.35s var(--ease-out);
+}
+.msg-error { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); color: #FCA5A5; animation: fadeUp 0.35s var(--ease-out), shake 0.4s ease 0.35s; }
+.msg-success { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.35); color: #86EFAC; }
+.msg-success .check-pop { animation: checkPop 0.4s var(--ease-spring); display: inline-flex; }
+
+/* ==================================================================
+   6. DASHBOARD
+   ================================================================== */
+.dashboard-page { display: none; padding: 0 0 60px; min-height: 100vh; position: relative; z-index: 1; }
+.dashboard-page.active { display: block; animation: fadeIn 0.5s var(--ease-out); }
+
+.top-bar {
+  border-bottom: 1px solid var(--line); padding: 16px 0; margin-bottom: 44px;
+  position: sticky; top: 0; z-index: 40; animation: fadeUp 0.5s var(--ease-out);
+}
+.top-bar .wrap { display: flex; justify-content: space-between; align-items: center; }
+.logo {
+  display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700; font-size: 16.5px;
+}
+
+/* Avatar + dropdown (functional: shows Logout) */
+.avatar-menu { position: relative; }
+.avatar-btn {
+  display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.03);
+  border: 1px solid var(--line); padding: 6px 14px 6px 6px; border-radius: 999px;
+  cursor: pointer; color: var(--text); transition: all 0.25s var(--ease-out);
+}
+.avatar-btn:hover { border-color: rgba(99,102,241,0.5); background: rgba(99,102,241,0.08); }
+.avatar-circle {
+  width: 32px; height: 32px; border-radius: 50%; overflow: hidden;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; color: #fff;
+  flex-shrink: 0;
+}
+.avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-name { font-size: 13.5px; font-weight: 600; }
+.avatar-btn svg.chev { width: 14px; height: 14px; color: var(--text-faint); transition: transform 0.25s; }
+.avatar-menu.open .chev { transform: rotate(180deg); }
+
+.avatar-dropdown {
+  position: absolute; top: calc(100% + 10px); right: 0; min-width: 190px;
+  border-radius: var(--r-md); padding: 8px; box-shadow: var(--shadow-lift);
+  opacity: 0; visibility: hidden; transform: translateY(-8px) scale(0.97);
+  transition: all 0.22s var(--ease-out); z-index: 50;
+}
+.avatar-menu.open .avatar-dropdown { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+.dropdown-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px;
+  background: transparent; border: none; color: var(--text); font-size: 13.5px;
+  border-radius: 8px; cursor: pointer; transition: background 0.2s; text-align: left;
+}
+.dropdown-item:hover { background: rgba(255,255,255,0.06); }
+.dropdown-item.danger { color: #FCA5A5; }
+.dropdown-item.danger:hover { background: rgba(239,68,68,0.1); }
+.dropdown-item svg { width: 16px; height: 16px; }
+
+/* Welcome banner */
+.welcome-banner { margin-bottom: 44px; animation: fadeUp 0.6s var(--ease-out) 0.05s backwards; }
+.welcome-banner h2 { font-size: clamp(26px, 4vw, 38px); }
+.welcome-banner .accent-text {
+  background: linear-gradient(135deg, var(--primary-2), var(--secondary));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.welcome-banner p { color: var(--text-dim); font-size: 14.5px; margin-top: 10px; }
+
+/* Action cards */
+.action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 44px; }
+@media (max-width: 700px) { .action-buttons { grid-template-columns: 1fr; } }
+
+.action-card {
+  border-radius: var(--r-lg); padding: 32px; cursor: pointer; position: relative;
+  overflow: hidden; transition: all 0.4s var(--ease-spring);
+  animation: fadeUp 0.6s var(--ease-out) backwards;
+}
+.action-card:nth-child(1) { animation-delay: 0.1s; }
+.action-card:nth-child(2) { animation-delay: 0.18s; }
+.action-card::before {
+  content: ""; position: absolute; inset: 0; opacity: 0; transition: opacity 0.4s;
+  background: radial-gradient(circle at 30% 20%, rgba(99,102,241,0.25), transparent 60%);
+}
+.action-card:hover {
+  transform: translateY(-6px); border-color: rgba(99,102,241,0.4);
+  box-shadow: var(--shadow-glow-primary);
+}
+.action-card:hover::before { opacity: 1; }
+.action-card-top { display: flex; justify-content: space-between; align-items: flex-start; position: relative; z-index: 1; }
+.action-icon {
+  width: 52px; height: 52px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(6,182,212,0.12));
+  border: 1px solid rgba(99,102,241,0.25);
+}
+.action-icon svg { width: 26px; height: 26px; color: var(--primary-2); }
+.action-preview-badge {
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--line); padding: 5px 12px;
+  border-radius: 999px; color: var(--text-dim);
+}
+.action-card h3 { font-size: 20px; margin-top: 20px; position: relative; z-index: 1; }
+.action-card p { color: var(--text-dim); font-size: 13.5px; margin-top: 6px; position: relative; z-index: 1; }
+.action-card .cta-row {
+  margin-top: 18px; display: flex; align-items: center; gap: 6px; font-size: 13px;
+  font-weight: 600; color: var(--primary-2); position: relative; z-index: 1;
+}
+.action-card .cta-row svg { width: 14px; height: 14px; transition: transform 0.3s var(--ease-spring); }
+.action-card:hover .cta-row svg { transform: translateX(4px); }
+
+/* Downloads */
+.downloads-section { animation: fadeUp 0.6s var(--ease-out) 0.26s backwards; }
+.downloads-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 8px; }
+.downloads-head h3 { font-size: 19px; }
+.downloads-head .version-tag {
+  font-family: 'Space Grotesk', sans-serif; font-size: 12.5px; color: var(--text-faint);
+  border: 1px solid var(--line); padding: 4px 10px; border-radius: 999px;
+}
+.download-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+@media (max-width: 700px) { .download-grid { grid-template-columns: 1fr; } }
+
+.download-card {
+  border-radius: var(--r-lg); padding: 30px; position: relative; overflow: hidden;
+  transition: all 0.4s var(--ease-spring);
+}
+.download-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-lift); border-color: rgba(255,255,255,0.16); }
+.dl-top { display: flex; align-items: center; gap: 14px; }
+.dl-icon {
+  width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--line); flex-shrink: 0;
+}
+.dl-icon svg { width: 24px; height: 24px; }
+.dl-meta h4 { font-size: 17px; }
+.dl-meta span { font-size: 12px; color: var(--text-faint); }
+.dl-notes { font-size: 12.5px; color: var(--text-dim); margin: 16px 0 20px; line-height: 1.6; }
+.dl-notes a { color: var(--primary-2); font-weight: 600; }
+.dl-notes a:hover { text-decoration: underline; }
+
+.download-link {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px; border-radius: var(--r-sm); font-weight: 700; font-size: 14px;
+  background: linear-gradient(135deg, var(--primary), #4f52d9); color: #fff;
+  transition: all 0.3s var(--ease-spring); position: relative; overflow: hidden;
+}
+.download-link:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(99,102,241,0.4); }
+.download-link svg { width: 16px; height: 16px; transition: transform 0.3s var(--ease-spring); }
+.download-link:hover svg { transform: translateY(2px); }
+
+/* ==================================================================
+   7. MODALS
+   ================================================================== */
+.modal {
+  position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center;
+  padding: 20px; background: rgba(4,6,12,0.75); backdrop-filter: blur(6px);
+}
+.modal.active { display: flex; animation: fadeIn 0.25s var(--ease-out); }
+.modal-content {
+  border-radius: var(--r-xl); padding: 36px; max-width: 560px; width: 100%;
+  max-height: 88vh; overflow-y: auto; position: relative;
+  box-shadow: var(--shadow-lift); animation: scaleIn 0.32s var(--ease-spring);
+}
+.modal-content.wide { max-width: 780px; }
+.modal-header {
+  font-size: 22px; margin-bottom: 24px; padding-right: 34px;
+  display: flex; align-items: center; gap: 10px;
+}
+.modal-header svg { width: 22px; height: 22px; color: var(--primary-2); }
+.modal-close {
+  position: absolute; top: 20px; right: 20px; width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--line); border-radius: 10px;
+  color: var(--text-dim); cursor: pointer; transition: all 0.25s var(--ease-spring);
+}
+.modal-close:hover { color: #fff; background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.4); transform: rotate(90deg); }
+.modal-close svg { width: 17px; height: 17px; }
+
+/* Profile modal */
+.profile-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.profile-avatar-lg {
+  width: 64px; height: 64px; border-radius: 50%; overflow: hidden;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 22px; color: #fff;
+  position: relative; flex-shrink: 0;
+}
+.profile-avatar-lg img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-upload-btn {
+  position: absolute; bottom: -2px; right: -2px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--card); border: 2px solid var(--bg); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-dim); transition: all 0.2s;
+}
+.avatar-upload-btn:hover { color: var(--primary-2); }
+.avatar-upload-btn svg { width: 11px; height: 11px; }
+
+.profile-view-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 15px 16px; background: rgba(255,255,255,0.03); border-radius: var(--r-md);
+  margin-bottom: 10px; border: 1px solid var(--line);
+}
+.profile-view-row .label { font-size: 10.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; }
+.profile-view-row .value { font-weight: 600; font-size: 15px; margin-top: 3px; }
+
+.btn-secondary {
+  padding: 11px 20px; background: rgba(255,255,255,0.04); border: 1px solid var(--line);
+  color: var(--text); border-radius: var(--r-sm); cursor: pointer; font-weight: 600;
+  font-size: 13.5px; transition: all 0.25s var(--ease-out); margin-top: 14px;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn-secondary:hover { border-color: var(--primary-2); background: rgba(99,102,241,0.08); }
+.btn-secondary svg { width: 15px; height: 15px; }
+
+#profile-edit-fields { display: none; margin-top: 20px; animation: fadeUp 0.3s var(--ease-out); }
+
+/* Tasks modal */
+.task-stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+@media (max-width: 600px) { .task-stats-row { grid-template-columns: 1fr 1fr; } }
+.mini-stat {
+  border-radius: var(--r-md); padding: 16px 12px; text-align: center; position: relative; overflow: hidden;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--line);
+}
+.mini-stat::after {
+  content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+.mini-stat .num {
+  font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; color: var(--text);
+}
+.mini-stat .lbl { font-size: 10px; color: var(--text-faint); text-transform: uppercase; margin-top: 3px; letter-spacing: 0.05em; }
+
+.overall-progress { margin-bottom: 22px; }
+.overall-progress-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+.overall-progress-track { height: 7px; border-radius: 4px; background: rgba(255,255,255,0.06); overflow: hidden; }
+.overall-progress-fill {
+  height: 100%; border-radius: 4px; width: 0%;
+  background: linear-gradient(90deg, var(--secondary), var(--success));
+  transition: width 0.7s var(--ease-spring);
+}
+
+.btn-add-task-toggle {
+  width: 100%; padding: 15px; border: 1.5px dashed rgba(99,102,241,0.4);
+  background: rgba(99,102,241,0.06); color: var(--primary-2); border-radius: var(--r-md);
+  font-weight: 700; cursor: pointer; font-size: 14px; margin-bottom: 20px;
+  transition: all 0.3s var(--ease-out); display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-add-task-toggle:hover { background: rgba(99,102,241,0.12); border-color: var(--primary-2); }
+.btn-add-task-toggle svg { width: 16px; height: 16px; }
+
+#add-task-form {
+  display: none; background: rgba(255,255,255,0.025); padding: 22px; border-radius: var(--r-md);
+  margin-bottom: 22px; border: 1px solid var(--line);
+}
+#add-task-form.active { display: block; animation: fadeUp 0.35s var(--ease-out); }
+.task-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 4px; }
+@media (max-width: 600px) { .task-form-grid { grid-template-columns: 1fr; } }
+.task-form-grid.full { grid-template-columns: 1fr; }
+
+.plain-field { margin-bottom: 16px; }
+.plain-field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-dim); margin-bottom: 7px; }
+.plain-field input, .plain-field select {
+  width: 100%; padding: 11px 14px; background: rgba(255,255,255,0.03);
+  border: 1.5px solid var(--line); border-radius: var(--r-sm); color: var(--text);
+  font-family: 'Inter', sans-serif; font-size: 13.5px; transition: all 0.25s;
+}
+.plain-field input:focus, .plain-field select:focus {
+  outline: none; border-color: var(--primary-2); box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+}
+.plain-field select option { background: var(--card); }
+
+.tasks-list { display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
+.task-item {
+  padding: 16px; border-radius: var(--r-md); display: flex; gap: 14px; align-items: flex-start;
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  background: rgba(255,255,255,0.025); transition: all 0.3s var(--ease-out);
+  animation: fadeUp 0.35s var(--ease-out);
+}
+.task-item:hover { background: rgba(255,255,255,0.045); transform: translateX(2px); }
+.task-item.completed { border-left-color: var(--success); opacity: 0.65; }
+.task-item.priority-easy { border-left-color: var(--success); }
+.task-item.priority-medium { border-left-color: var(--accent); }
+.task-item.priority-urgent { border-left-color: var(--danger); }
+.task-item.completed.priority-easy,
+.task-item.completed.priority-medium,
+.task-item.completed.priority-urgent { border-left-color: var(--success); }
+
+.task-checkbox-wrap { padding-top: 3px; }
+.task-checkbox {
+  width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary);
+  border-radius: 5px;
+}
+.task-checkbox:disabled { cursor: not-allowed; accent-color: var(--success); }
+
+.task-details { flex: 1; min-width: 0; }
+.task-title { font-weight: 600; margin-bottom: 7px; font-size: 14.5px; }
+.task-item.completed .task-title { text-decoration: line-through; color: var(--text-faint); }
+.task-meta { display: flex; gap: 12px; font-size: 11.5px; color: var(--text-dim); flex-wrap: wrap; align-items: center; }
+.task-meta .meta-icon { width: 12px; height: 12px; vertical-align: -1px; margin-right: 3px; }
+
+.task-badge {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+}
+.task-badge.easy { background: rgba(34,197,94,0.15); color: #6EE7A8; border: 1px solid rgba(34,197,94,0.3); }
+.task-badge.medium { background: rgba(245,158,11,0.15); color: #FCD34D; border: 1px solid rgba(245,158,11,0.3); }
+.task-badge.urgent { background: rgba(239,68,68,0.15); color: #FCA5A5; border: 1px solid rgba(239,68,68,0.3); }
+.task-badge.status-completed { background: rgba(34,197,94,0.18); color: #6EE7A8; border: 1px solid rgba(34,197,94,0.35); }
+.countdown-tag { font-weight: 600; }
+.countdown-tag.overdue { color: #FCA5A5; }
+.countdown-tag.today { color: #FCD34D; }
+.countdown-tag.ok { color: var(--text-dim); }
+
+.task-delete {
+  padding: 6px 8px; background: transparent; border: 1px solid var(--line); color: var(--text-faint);
+  border-radius: 8px; cursor: pointer; transition: all 0.2s; align-self: flex-start; flex-shrink: 0;
+}
+.task-delete:hover { color: #FCA5A5; border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.08); }
+.task-delete svg { width: 14px; height: 14px; }
+
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-faint); font-size: 13.5px; }
+.empty-state svg { width: 32px; height: 32px; margin-bottom: 10px; opacity: 0.5; }
+
+/* Status choice modal */
+.status-choice-buttons { display: flex; gap: 12px; margin-top: 4px; }
+.status-choice-buttons button {
+  flex: 1; padding: 20px 16px; border-radius: var(--r-md); border: 1.5px solid var(--line);
+  background: rgba(255,255,255,0.03); color: var(--text); cursor: pointer; font-weight: 700;
+  transition: all 0.3s var(--ease-spring); font-family: 'Space Grotesk', sans-serif; font-size: 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.status-choice-buttons button svg { width: 22px; height: 22px; }
+.status-choice-buttons button.inprogress-choice:hover { border-color: var(--secondary); background: rgba(6,182,212,0.1); color: #67E8F9; }
+.status-choice-buttons button.complete-choice:hover { border-color: var(--success); background: rgba(34,197,94,0.1); color: #6EE7A8; }
+
+/* Scrollbar polish */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 </style>
 </head>
 <body>
 
-<nav>
-  <div class="wrap">
-    <div class="logo"><span class="logo-mark"></span>Traffic Label Studio</div>
-    <a href="#downloads" class="nav-cta">Download</a>
-  </div>
-</nav>
+<!-- Ambient background layer (decorative, aria-hidden) -->
+<div class="aurora" aria-hidden="true">
+  <span class="b1 motion-safe-float"></span>
+  <span class="b2 motion-safe-float" style="animation-delay:-7s;"></span>
+  <span class="b3 motion-safe-float" style="animation-delay:-14s;"></span>
+</div>
 
-<header class="hero">
-  <div class="wrap">
-    <div class="eyebrow">Free · Open annotation tool</div>
-    <h1>Draw the box.<br>Name the <span class="accent">class</span>.<br>Ship the model.</h1>
-    <p class="sub">
-      A desktop annotation tool built for real traffic data — rectangles and
-      polygons, custom classes, YOLO export, all running locally on your machine.
-    </p>
+<!-- ============================================================
+     AUTH PAGE  (ids unchanged: auth-page, btn-login, btn-register,
+     login-form-wrapper, register-form-wrapper, login-msg,
+     register-msg, login-user, login-pass, reg-user, reg-email,
+     reg-pass, reg-pass2)
+     ============================================================ -->
+<div class="auth-page" id="auth-page">
+  <div class="auth-wrapper">
+    <div class="auth-hero">
+      <div class="brand-row"><span class="logo-mark"></span>Traffic Label Studio</div>
+      <h1>Annotate traffic with precision.</h1>
+      <div class="signal-line"><span class="signal-pulse"></span></div>
+      <p>A professional dashboard for managing your annotation workflow — register once, track every task, and get the desktop app whenever you need it.</p>
 
-    <div class="download-row">
-      <a href="#downloads" class="btn btn-primary" id="btn-windows">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M0 2.5L7.3 1.5V8.4H0V2.5Z" fill="currentColor"/><path d="M8.1 1.4L17.5 0V8.4H8.1V1.4Z" fill="currentColor"/><path d="M0 9.2H7.3V16.1L0 15.1V9.2Z" fill="currentColor"/><path d="M8.1 9.2H17.5V17.6L8.1 16.2V9.2Z" fill="currentColor"/></svg>
-        <span>Download for Windows<span class="sub-label">.exe · Windows 10/11</span></span>
-      </a>
-      <a href="#downloads" class="btn btn-secondary" id="btn-linux">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2C9 2 8 5 8 7c0 1.5.5 2.5 0 3.5-.5 1-2 2-2 4 0 2 1.5 3 1.5 3s-.5 1.5 1 2.5c1 .7 2 .3 2.5 1 .5.7 1.5 1 2 1s1.5-.3 2-1c.5-.7 1.5-.3 2.5-1 1.5-1 1-2.5 1-2.5s1.5-1 1.5-3c0-2-1.5-3-2-4-.5-1 0-2 0-3.5 0-2-1-5-4-5Z" stroke="currentColor" stroke-width="1.4"/><circle cx="9.7" cy="9" r="0.9" fill="currentColor"/><circle cx="14.3" cy="9" r="0.9" fill="currentColor"/></svg>
-        <span>Download for Linux<span class="sub-label">.tar.gz · Ubuntu 20.04+</span></span>
-      </a>
-    </div>
-    <p class="detected-note" id="os-note"></p>
-
-    <div class="demo-panel">
-      <div class="demo-titlebar">
-        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-        <span class="mono">traffic_junction_0142.jpg</span>
+      <div class="trust-row">
+        <div class="trust-item"><span class="num">100%</span><span class="lbl">Offline &amp; local</span></div>
+        <div class="trust-item"><span class="num">YOLO</span><span class="lbl">Export ready</span></div>
+        <div class="trust-item"><span class="num">Free</span><span class="lbl">No account limits</span></div>
       </div>
-      <div class="demo-body">
-        <svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg">
-          <rect width="800" height="320" fill="#0e1113"/>
-          <rect y="230" width="800" height="90" fill="#181b1d"/>
-          <line x1="0" y1="240" x2="800" y2="240" stroke="#3a3f43" stroke-width="2"/>
-          <g stroke="#3a3f43" stroke-width="4" stroke-dasharray="24 18">
-            <line x1="0" y1="280" x2="800" y2="280"/>
-          </g>
+    </div>
 
-          <!-- Bus -->
-          <g>
-            <rect x="60" y="150" width="140" height="60" rx="6" fill="#2c3236"/>
-            <circle cx="90" cy="212" r="10" fill="#111"/>
-            <circle cx="170" cy="212" r="10" fill="#111"/>
-            <rect class="box-rect" x="52" y="140" width="156" height="82" rx="4" fill="none" stroke="#f1c40f" stroke-width="2"/>
-            <g class="tag-group" style="animation-delay:0.9s">
-              <rect x="52" y="122" width="42" height="18" rx="2" fill="#f1c40f"/>
-              <text x="58" y="135" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#121517">BUS</text>
-            </g>
-          </g>
+    <div class="auth-form-wrapper">
+      <div class="auth-card glass">
+        <div class="form-toggle" role="tablist" aria-label="Login or Register">
+          <button class="active" id="btn-login" role="tab" aria-selected="true" onclick="switchTab('login')">Login</button>
+          <button id="btn-register" role="tab" aria-selected="false" onclick="switchTab('register')">Register</button>
+        </div>
 
-          <!-- Car -->
-          <g>
-            <rect x="260" y="175" width="95" height="40" rx="8" fill="#4a3f2f"/>
-            <circle cx="280" cy="217" r="8" fill="#111"/>
-            <circle cx="335" cy="217" r="8" fill="#111"/>
-            <rect class="box-rect" x="252" y="167" width="111" height="58" rx="4" fill="none" stroke="#e74c3c" stroke-width="2" style="animation-delay:0.2s"/>
-            <g class="tag-group" style="animation-delay:1.1s">
-              <rect x="252" y="149" width="40" height="18" rx="2" fill="#e74c3c"/>
-              <text x="258" y="162" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#121517">CAR</text>
-            </g>
-          </g>
+        <!-- LOGIN -->
+        <div id="login-form-wrapper">
+          <div id="login-msg" aria-live="polite"></div>
 
-          <!-- Auto rickshaw -->
-          <g>
-            <path d="M420 218 L420 190 Q420 178 434 178 L462 178 Q474 178 474 192 L474 218 Z" fill="#136e63"/>
-            <circle cx="432" cy="220" r="8" fill="#111"/>
-            <circle cx="464" cy="220" r="8" fill="#111"/>
-            <rect class="box-rect" x="412" y="170" width="70" height="56" rx="4" fill="none" stroke="#1abc9c" stroke-width="2" style="animation-delay:0.4s"/>
-            <g class="tag-group" style="animation-delay:1.3s">
-              <rect x="412" y="152" width="46" height="18" rx="2" fill="#1abc9c"/>
-              <text x="418" y="165" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#121517">AUTO</text>
-            </g>
-          </g>
+          <div class="field">
+            <input type="text" id="login-user" placeholder=" " autocomplete="username">
+            <label for="login-user">Username</label>
+          </div>
 
-          <!-- Bike -->
-          <g>
-            <line x1="545" y1="220" x2="575" y2="196" stroke="#3498db" stroke-width="4" stroke-linecap="round"/>
-            <circle cx="540" cy="222" r="9" fill="none" stroke="#3498db" stroke-width="3"/>
-            <circle cx="585" cy="222" r="9" fill="none" stroke="#3498db" stroke-width="3"/>
-            <rect class="box-rect" x="528" y="188" width="70" height="46" rx="4" fill="none" stroke="#3498db" stroke-width="2" style="animation-delay:0.6s"/>
-            <g class="tag-group" style="animation-delay:1.5s">
-              <rect x="528" y="170" width="42" height="18" rx="2" fill="#3498db"/>
-              <text x="534" y="183" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#121517">BIKE</text>
-            </g>
-          </g>
+          <div class="field has-toggle">
+            <input type="password" id="login-pass" placeholder=" " autocomplete="current-password">
+            <label for="login-pass">Password</label>
+            <button type="button" class="pw-toggle" data-target="login-pass" aria-label="Show password">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
 
-          <!-- Person -->
-          <g>
-            <circle cx="670" cy="188" r="7" fill="#2ecc71"/>
-            <line x1="670" y1="195" x2="670" y2="216" stroke="#2ecc71" stroke-width="4" stroke-linecap="round"/>
-            <rect class="box-rect" x="656" y="178" width="30" height="52" rx="4" fill="none" stroke="#2ecc71" stroke-width="2" style="animation-delay:0.75s"/>
-            <g class="tag-group" style="animation-delay:1.65s">
-              <rect x="656" y="160" width="58" height="18" rx="2" fill="#2ecc71"/>
-              <text x="662" y="173" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" fill="#121517">PERSON</text>
-            </g>
-          </g>
-        </svg>
+          <button type="button" class="btn-primary" id="login-submit-btn" onclick="handleLoginUI()">Login</button>
+        </div>
+
+        <!-- REGISTER -->
+        <div id="register-form-wrapper" style="display:none;">
+          <div id="register-msg" aria-live="polite"></div>
+
+          <div class="field">
+            <input type="text" id="reg-user" placeholder=" " autocomplete="username">
+            <label for="reg-user">Username (min 3 chars)</label>
+          </div>
+
+          <div class="field">
+            <input type="email" id="reg-email" placeholder=" " autocomplete="email">
+            <label for="reg-email">Email</label>
+          </div>
+
+          <div class="field has-toggle">
+            <input type="password" id="reg-pass" placeholder=" " autocomplete="new-password">
+            <label for="reg-pass">Password (min 4 chars)</label>
+            <button type="button" class="pw-toggle" data-target="reg-pass" aria-label="Show password">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
+          <div class="pw-strength" id="pw-strength-box">
+            <div class="pw-strength-track"><div class="pw-strength-fill" id="pw-strength-fill"></div></div>
+            <div class="pw-strength-label" id="pw-strength-label">Too short</div>
+          </div>
+
+          <div class="field has-toggle">
+            <input type="password" id="reg-pass2" placeholder=" " autocomplete="new-password">
+            <label for="reg-pass2">Confirm password</label>
+            <button type="button" class="pw-toggle" data-target="reg-pass2" aria-label="Show password">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
+
+          <button type="button" class="btn-primary" id="register-submit-btn" onclick="handleRegisterUI()">Create account</button>
+        </div>
       </div>
     </div>
   </div>
-</header>
+</div>
 
-<section class="specs">
-  <div class="wrap">
-    <div class="section-head">
-      <div class="eyebrow">Spec sheet</div>
-      <h2>Built for labeling real streets, not toy datasets.</h2>
-    </div>
+<!-- ============================================================
+     DASHBOARD PAGE (ids unchanged: dashboard-page, welcome-name)
+     ============================================================ -->
+<div class="dashboard-page" id="dashboard-page">
+  <div class="top-bar glass">
+    <div class="wrap">
+      <div class="logo"><span class="logo-mark"></span>Traffic Label Studio</div>
 
-    <div class="spec-grid">
-      <div class="spec-row">
-        <div class="num">01</div>
-        <div class="label">Two shape modes</div>
-        <div class="desc">Rectangles for clean-edged objects, polygons for irregular ones — click point-by-point and close the loop by clicking back on your start point.</div>
-      </div>
-      <div class="spec-row">
-        <div class="num">02</div>
-        <div class="label">Classes you define</div>
-        <div class="desc">Ships with Car, Bike, Bus, Truck, Auto, and Person — add your own on the fly, right from a popup after you draw a shape.</div>
-      </div>
-      <div class="spec-row">
-        <div class="num">03</div>
-        <div class="label">YOLO-ready export</div>
-        <div class="desc">Rectangles export as standard YOLO detection labels; polygons export as YOLO-seg format. One click bundles images, labels, and a data.yaml.</div>
-      </div>
-      <div class="spec-row">
-        <div class="num">04</div>
-        <div class="label">Per-user accounts</div>
-        <div class="desc">Local login system, so every saved label is stamped with who labeled it and when — useful the moment more than one person is annotating.</div>
-      </div>
-      <div class="spec-row">
-        <div class="num">05</div>
-        <div class="label">Runs offline</div>
-        <div class="desc">No account, no cloud upload, no internet connection required. Your images never leave your machine.</div>
+      <div class="avatar-menu" id="avatar-menu">
+        <button class="avatar-btn" onclick="toggleAvatarMenu()" aria-haspopup="true" aria-expanded="false">
+          <div class="avatar-circle" id="avatar-circle">--</div>
+          <span class="avatar-name" id="avatar-name-label">--</span>
+          <i data-lucide="chevron-down" class="chev"></i>
+        </button>
+        <div class="avatar-dropdown glass">
+          <button class="dropdown-item" onclick="openProfileModal(); closeAvatarMenu();">
+            <i data-lucide="user"></i> View profile
+          </button>
+          <button class="dropdown-item danger" onclick="logout()">
+            <i data-lucide="log-out"></i> Logout
+          </button>
+        </div>
       </div>
     </div>
   </div>
-</section>
 
-<section class="downloads" id="downloads">
   <div class="wrap">
-    <div class="section-head">
-      <div class="eyebrow">Get the app</div>
-      <h2>Pick your platform.</h2>
+    <div class="welcome-banner">
+      <h2>Welcome back, <span class="accent-text" id="welcome-name"></span></h2>
+      <div class="signal-line" style="width:44px;"><span class="signal-pulse"></span></div>
+      <p>Manage your profile and tasks, or grab the latest desktop app below.</p>
     </div>
 
-    <div class="dl-grid">
-      <div class="dl-card">
-        <svg class="os-icon" width="28" height="28" viewBox="0 0 18 18" fill="none"><path d="M0 2.5L7.3 1.5V8.4H0V2.5Z" fill="#f4c430"/><path d="M8.1 1.4L17.5 0V8.4H8.1V1.4Z" fill="#f4c430"/><path d="M0 9.2H7.3V16.1L0 15.1V9.2Z" fill="#f4c430"/><path d="M8.1 9.2H17.5V17.6L8.1 16.2V9.2Z" fill="#f4c430"/></svg>
-        <h3>Windows</h3>
-        <div class="req mono">Windows 10 / 11 · 64-bit</div>
-        <a href="https://github.com/Shailendra00111/traffic-label-studio/releases/latest/download/TrafficLabelStudio-Windows.exe" class="btn btn-primary">
-          Download .exe
-        </a>
-        <ul class="steps">
-          <li>Download the .exe file</li>
-          <li>Double-click to run (no install needed)</li>
-          <li>If SmartScreen warns you: "More info" → "Run anyway"</li>
-        </ul>
+    <!-- Nothing below opens until these are clicked -->
+    <div class="action-buttons">
+      <div class="action-card glass" onclick="openProfileModal()" role="button" tabindex="0"
+           onkeydown="if(event.key==='Enter')openProfileModal()">
+        <div class="action-card-top">
+          <div class="action-icon"><i data-lucide="user-circle"></i></div>
+        </div>
+        <h3>My Profile</h3>
+        <p>View &amp; edit your account details</p>
+        <div class="cta-row">Open profile <i data-lucide="arrow-right"></i></div>
       </div>
 
-      <div class="dl-card">
-        <svg class="os-icon" width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 2C9 2 8 5 8 7c0 1.5.5 2.5 0 3.5-.5 1-2 2-2 4 0 2 1.5 3 1.5 3s-.5 1.5 1 2.5c1 .7 2 .3 2.5 1 .5.7 1.5 1 2 1s1.5-.3 2-1c.5-.7 1.5-.3 2.5-1 1.5-1 1-2.5 1-2.5s1.5-1 1.5-3c0-2-1.5-3-2-4-.5-1 0-2 0-3.5 0-2-1-5-4-5Z" stroke="#f4c430" stroke-width="1.4"/><circle cx="9.7" cy="9" r="0.9" fill="#f4c430"/><circle cx="14.3" cy="9" r="0.9" fill="#f4c430"/></svg>
-        <h3>Linux</h3>
-        <div class="req mono">Ubuntu 20.04+ · 64-bit</div>
-        <a href="https://github.com/Shailendra00111/traffic-label-studio/releases/latest/download/TrafficLabelStudio-Linux.tar.gz" class="btn btn-secondary">
-          Download .tar.gz
-        </a>
-        <ul class="steps">
-          <li class="mono">tar -xzf TrafficLabelStudio-Linux.tar.gz</li>
-          <li class="mono">chmod +x TrafficLabelStudio</li>
-          <li class="mono">./TrafficLabelStudio</li>
-        </ul>
+      <div class="action-card glass" onclick="openTasksModal()" role="button" tabindex="0"
+           onkeydown="if(event.key==='Enter')openTasksModal()">
+        <div class="action-card-top">
+          <div class="action-icon"><i data-lucide="list-checks"></i></div>
+          <span class="action-preview-badge" id="task-preview-badge">0 tasks</span>
+        </div>
+        <h3>My Tasks</h3>
+        <p>Track progress &amp; add new tasks</p>
+        <div class="cta-row">Open tasks <i data-lucide="arrow-right"></i></div>
+      </div>
+    </div>
+
+    <!-- Downloads: always visible (the site's main call to action) -->
+    <div class="downloads-section">
+      <div class="downloads-head">
+        <h3>Download the desktop app</h3>
+        <span class="version-tag">v1.0.0</span>
+      </div>
+      <div class="download-grid">
+        <div class="download-card glass">
+          <div class="dl-top">
+            <div class="dl-icon"><i data-lucide="app-window"></i></div>
+            <div class="dl-meta"><h4>Windows</h4><span>Windows 10 / 11 · 64-bit</span></div>
+          </div>
+          <p class="dl-notes">Standalone .exe, no install required. See the <a href="https://github.com/Shailendra00111/traffic-label-studio/releases" target="_blank" rel="noopener">release notes</a> for what's new.</p>
+          <a href="https://github.com/Shailendra00111/traffic-label-studio/releases/latest/download/TrafficLabelStudio-Windows.exe" class="download-link">
+            <i data-lucide="download"></i> Download .exe
+          </a>
+        </div>
+        <div class="download-card glass">
+          <div class="dl-top">
+            <div class="dl-icon"><i data-lucide="terminal"></i></div>
+            <div class="dl-meta"><h4>Linux</h4><span>Ubuntu 20.04+ · 64-bit</span></div>
+          </div>
+          <p class="dl-notes">Packaged as a .tar.gz binary. See the <a href="https://github.com/Shailendra00111/traffic-label-studio/releases" target="_blank" rel="noopener">release notes</a> for what's new.</p>
+          <a href="https://github.com/Shailendra00111/traffic-label-studio/releases/latest/download/TrafficLabelStudio-Linux.tar.gz" class="download-link">
+            <i data-lucide="download"></i> Download .tar.gz
+          </a>
+        </div>
       </div>
     </div>
   </div>
-</section>
+</div>
 
-<footer>
-  <div class="wrap">
-    <span class="mono">Traffic Label Studio — runs locally, no data leaves your machine.</span>
-    <span class="mono" id="year"></span>
+<!-- ============================================================
+     PROFILE MODAL (ids unchanged: profile-modal, prof-username,
+     prof-email, prof-date, profile-view, profile-edit-fields,
+     edit-email, edit-password)
+     ============================================================ -->
+<div class="modal" id="profile-modal">
+  <div class="modal-content glass" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
+    <button class="modal-close" onclick="closeModal('profile-modal')" aria-label="Close"><i data-lucide="x"></i></button>
+    <div class="modal-header" id="profile-modal-title"><i data-lucide="user-circle"></i>My Profile</div>
+
+    <div class="profile-header">
+      <div class="profile-avatar-lg" id="profile-avatar-lg">
+        --
+        <button class="avatar-upload-btn" onclick="document.getElementById('avatar-file-input').click()" aria-label="Change photo" title="Change photo">
+          <i data-lucide="camera"></i>
+        </button>
+      </div>
+      <input type="file" id="avatar-file-input" accept="image/*" style="display:none;" onchange="handleAvatarUpload(event)">
+      <div>
+        <div style="font-weight:700; font-size:16px;" id="profile-header-name">--</div>
+        <div style="font-size:12.5px; color:var(--text-faint);">Click the camera icon to change your photo</div>
+      </div>
+    </div>
+
+    <div id="profile-view">
+      <div class="profile-view-row"><div><div class="label">Username</div><div class="value" id="prof-username">--</div></div></div>
+      <div class="profile-view-row"><div><div class="label">Email</div><div class="value" id="prof-email">--</div></div></div>
+      <div class="profile-view-row"><div><div class="label">Member since</div><div class="value" id="prof-date">--</div></div></div>
+      <button class="btn-secondary" onclick="toggleEditProfile()"><i data-lucide="pencil"></i>Edit profile</button>
+    </div>
+
+    <div id="profile-edit-fields">
+      <div class="plain-field"><label for="edit-email">Email</label><input type="email" id="edit-email"></div>
+      <div class="plain-field"><label for="edit-password">New password (leave blank to keep same)</label><input type="password" id="edit-password" placeholder="New password"></div>
+      <button type="button" class="btn-primary" id="save-profile-btn" onclick="saveProfileUI()">Save changes</button>
+    </div>
   </div>
-</footer>
+</div>
+
+<!-- ============================================================
+     TASKS MODAL (ids unchanged: tasks-modal, stat-total,
+     stat-completed, stat-inprogress, stat-urgent, add-task-form,
+     task-title, task-assigned, task-assigndate, task-duedate,
+     task-priority, tasks-list)
+     ============================================================ -->
+<div class="modal" id="tasks-modal">
+  <div class="modal-content wide glass" role="dialog" aria-modal="true" aria-labelledby="tasks-modal-title">
+    <button class="modal-close" onclick="closeModal('tasks-modal')" aria-label="Close"><i data-lucide="x"></i></button>
+    <div class="modal-header" id="tasks-modal-title"><i data-lucide="list-checks"></i>My Tasks</div>
+
+    <div class="task-stats-row">
+      <div class="mini-stat"><div class="num" id="stat-total">0</div><div class="lbl">Total</div></div>
+      <div class="mini-stat"><div class="num" id="stat-completed">0</div><div class="lbl">Completed</div></div>
+      <div class="mini-stat"><div class="num" id="stat-inprogress">0</div><div class="lbl">In progress</div></div>
+      <div class="mini-stat"><div class="num" id="stat-urgent">0</div><div class="lbl">Urgent</div></div>
+    </div>
+
+    <div class="overall-progress">
+      <div class="overall-progress-head"><span>Overall completion</span><span id="overall-progress-pct">0%</span></div>
+      <div class="overall-progress-track"><div class="overall-progress-fill" id="overall-progress-fill"></div></div>
+    </div>
+
+    <button class="btn-add-task-toggle" onclick="toggleAddTaskForm()"><i data-lucide="plus"></i>Add new task</button>
+
+    <div id="add-task-form">
+      <div class="task-form-grid">
+        <div class="plain-field"><label for="task-title">Task title</label><input type="text" id="task-title" placeholder="e.g. Label 50 auto images"></div>
+        <div class="plain-field"><label for="task-assigned">Assigned by</label><input type="text" id="task-assigned" placeholder="e.g. Mentor name"></div>
+      </div>
+      <div class="task-form-grid">
+        <div class="plain-field"><label for="task-assigndate">Date assigned</label><input type="date" id="task-assigndate"></div>
+        <div class="plain-field"><label for="task-duedate">Last date (due)</label><input type="date" id="task-duedate"></div>
+      </div>
+      <div class="task-form-grid full">
+        <div class="plain-field">
+          <label for="task-priority">Priority</label>
+          <select id="task-priority">
+            <option value="">Select priority</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+      </div>
+      <button type="button" class="btn-primary" onclick="addTask()">Add task</button>
+    </div>
+
+    <div class="tasks-list" id="tasks-list"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     STATUS CHOICE MODAL (ids unchanged: status-modal,
+     status-task-title)
+     ============================================================ -->
+<div class="modal" id="status-modal">
+  <div class="modal-content glass" style="max-width: 420px;" role="dialog" aria-modal="true" aria-labelledby="status-modal-title">
+    <button class="modal-close" onclick="closeModal('status-modal')" aria-label="Close"><i data-lucide="x"></i></button>
+    <div class="modal-header" id="status-modal-title"><i data-lucide="clock"></i>Update task status</div>
+    <p id="status-task-title" style="color: var(--text-dim); margin-bottom: 20px; font-size: 14px;"></p>
+    <div class="status-choice-buttons">
+      <button class="inprogress-choice" onclick="confirmStatus('inprogress')"><i data-lucide="loader"></i>In progress</button>
+      <button class="complete-choice" onclick="confirmStatus('completed')"><i data-lucide="check-circle-2"></i>Complete</button>
+    </div>
+  </div>
+</div>
 
 <script>
-  document.getElementById('year').textContent = new Date().getFullYear();
+/* ==================================================================
+   All original function names, IDs, and stored-data logic are kept
+   exactly as before. Additions (marked "NEW") only enhance the UI:
+   password strength, show/hide toggles, animated counters, avatar,
+   countdown text, ESC-to-close, and a live task-count preview badge.
+   ================================================================== */
 
-  // Highlight the right download button based on OS
-  (function() {
-    const ua = navigator.userAgent;
-    const note = document.getElementById('os-note');
-    const winBtn = document.getElementById('btn-windows');
-    const linBtn = document.getElementById('btn-linux');
+let currentStatusTaskId = null;
 
-    if (ua.indexOf('Windows') !== -1) {
-      note.innerHTML = 'Detected: <strong>Windows</strong> — grab the .exe below.';
-    } else if (ua.indexOf('Linux') !== -1 && ua.indexOf('Android') === -1) {
-      note.innerHTML = 'Detected: <strong>Linux</strong> — grab the .AppImage below.';
-      winBtn.classList.remove('btn-primary'); winBtn.classList.add('btn-secondary');
-      linBtn.classList.remove('btn-secondary'); linBtn.classList.add('btn-primary');
-    } else {
-      note.textContent = '';
-    }
-  })();
+/* ---------- Tab switching (unchanged logic) ---------- */
+function switchTab(tab) {
+  const loginW = document.getElementById('login-form-wrapper');
+  const registerW = document.getElementById('register-form-wrapper');
+  const btnLogin = document.getElementById('btn-login');
+  const btnRegister = document.getElementById('btn-register');
+  if (tab === 'login') {
+    loginW.style.display = 'block'; registerW.style.display = 'none';
+    btnLogin.classList.add('active'); btnRegister.classList.remove('active');
+    btnLogin.setAttribute('aria-selected', 'true'); btnRegister.setAttribute('aria-selected', 'false');
+  } else {
+    loginW.style.display = 'none'; registerW.style.display = 'block';
+    btnLogin.classList.remove('active'); btnRegister.classList.add('active');
+    btnLogin.setAttribute('aria-selected', 'false'); btnRegister.setAttribute('aria-selected', 'true');
+  }
+}
+
+/* ---------- Password hashing (unchanged) ---------- */
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/* ---------- Register (unchanged logic, wrapped for loading state) ---------- */
+async function handleRegister() {
+  const username = document.getElementById('reg-user').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-pass').value;
+  const password2 = document.getElementById('reg-pass2').value;
+  const msg = document.getElementById('register-msg');
+  msg.innerHTML = '';
+
+  if (!username || !email || !password || !password2) {
+    msg.innerHTML = '<div class="msg-error">All fields are required</div>'; return;
+  }
+  if (username.length < 3) { msg.innerHTML = '<div class="msg-error">Username must be at least 3 characters</div>'; return; }
+  if (password.length < 4) { msg.innerHTML = '<div class="msg-error">Password must be at least 4 characters</div>'; return; }
+  if (password !== password2) { msg.innerHTML = '<div class="msg-error">Passwords don\'t match</div>'; return; }
+
+  let users = JSON.parse(localStorage.getItem('tls_users') || '{}');
+  if (users[username]) { msg.innerHTML = '<div class="msg-error">Username is already taken</div>'; return; }
+
+  const hash = await hashPassword(password);
+  users[username] = { username, email, password: hash, created: new Date().toISOString(), avatar: null };
+  localStorage.setItem('tls_users', JSON.stringify(users));
+  msg.innerHTML = '<div class="msg-success"><span class="check-pop">✓</span> Account created — please login.</div>';
+
+  setTimeout(() => {
+    document.getElementById('reg-user').value = '';
+    document.getElementById('reg-email').value = '';
+    document.getElementById('reg-pass').value = '';
+    document.getElementById('reg-pass2').value = '';
+    document.getElementById('pw-strength-box').classList.remove('show');
+    switchTab('login');
+  }, 1400);
+}
+
+/* NEW: thin wrapper adding a loading state to the button without
+   touching the underlying handleRegister() logic. */
+async function handleRegisterUI() {
+  const btn = document.getElementById('register-submit-btn');
+  btn.classList.add('is-loading');
+  await handleRegister();
+  btn.classList.remove('is-loading');
+}
+
+/* ---------- Login (unchanged logic) ---------- */
+async function handleLogin() {
+  const username = document.getElementById('login-user').value.trim();
+  const password = document.getElementById('login-pass').value;
+  const msg = document.getElementById('login-msg');
+  msg.innerHTML = '';
+
+  if (!username || !password) { msg.innerHTML = '<div class="msg-error">Username and password are required</div>'; return; }
+
+  let users = JSON.parse(localStorage.getItem('tls_users') || '{}');
+  if (!users[username]) { msg.innerHTML = '<div class="msg-error">User not found</div>'; return; }
+
+  const hash = await hashPassword(password);
+  if (users[username].password !== hash) { msg.innerHTML = '<div class="msg-error">Incorrect password</div>'; return; }
+
+  localStorage.setItem('tls_current_user', username);
+  msg.innerHTML = '<div class="msg-success"><span class="check-pop">✓</span> Login successful</div>';
+  setTimeout(() => showDashboard(username), 650);
+}
+
+/* NEW: loading-state wrapper, same reasoning as register */
+async function handleLoginUI() {
+  const btn = document.getElementById('login-submit-btn');
+  btn.classList.add('is-loading');
+  await handleLogin();
+  btn.classList.remove('is-loading');
+}
+
+/* NEW: derive initials from a username for the avatar circle */
+function getInitials(name) {
+  if (!name) return '--';
+  return name.trim().slice(0, 2).toUpperCase();
+}
+
+/* NEW: paint the avatar (photo if uploaded, else initials) wherever it appears */
+function paintAvatar(username) {
+  const users = JSON.parse(localStorage.getItem('tls_users') || '{}');
+  const user = users[username];
+  const initials = getInitials(username);
+  const topAvatar = document.getElementById('avatar-circle');
+  const modalAvatar = document.getElementById('profile-avatar-lg');
+
+  if (user && user.avatar) {
+    topAvatar.innerHTML = `<img src="${user.avatar}" alt="">`;
+    modalAvatar.innerHTML = `<img src="${user.avatar}" alt="">` +
+      `<button class="avatar-upload-btn" onclick="document.getElementById('avatar-file-input').click()" aria-label="Change photo" title="Change photo"><i data-lucide="camera"></i></button>`;
+  } else {
+    topAvatar.textContent = initials;
+    modalAvatar.innerHTML = initials +
+      `<button class="avatar-upload-btn" onclick="document.getElementById('avatar-file-input').click()" aria-label="Change photo" title="Change photo"><i data-lucide="camera"></i></button>`;
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+/* ---------- Dashboard entry (unchanged core, + avatar + preview badge) ---------- */
+function showDashboard(username) {
+  document.getElementById('auth-page').style.display = 'none';
+  document.getElementById('dashboard-page').classList.add('active');
+  document.getElementById('welcome-name').textContent = username;
+  document.getElementById('avatar-name-label').textContent = username;
+  paintAvatar(username);
+  updateTaskPreviewBadge();
+}
+
+/* ---------- Profile modal (unchanged logic) ---------- */
+function openProfileModal() {
+  const username = localStorage.getItem('tls_current_user');
+  const users = JSON.parse(localStorage.getItem('tls_users') || '{}');
+  const user = users[username];
+
+  document.getElementById('prof-username').textContent = username;
+  document.getElementById('prof-email').textContent = user.email;
+  document.getElementById('prof-date').textContent = new Date(user.created).toLocaleDateString();
+  document.getElementById('profile-header-name').textContent = username;
+
+  document.getElementById('profile-edit-fields').style.display = 'none';
+  document.getElementById('profile-view').style.display = 'block';
+
+  paintAvatar(username);
+  document.getElementById('profile-modal').classList.add('active');
+}
+
+function toggleEditProfile() {
+  const username = localStorage.getItem('tls_current_user');
+  const users = JSON.parse(localStorage.getItem('tls_users') || '{}');
+  const user = users[username];
+
+  document.getElementById('edit-email').value = user.email;
+  document.getElementById('edit-password').value = '';
+  document.getElementById('profile-edit-fields').style.display = 'block';
+}
+
+async function saveProfile() {
+  const username = localStorage.getItem('tls_current_user');
+  const users = JSON.parse(localStorage.getItem('tls_users') || '{}');
+  const email = document.getElementById('edit-email').value.trim();
+  const newPassword = document.getElementById('edit-password').value;
+
+  users[username].email = email;
+  if (newPassword) {
+    if (newPassword.length < 4) { alert('Password must be at least 4 characters'); return; }
+    users[username].password = await hashPassword(newPassword);
+  }
+  localStorage.setItem('tls_users', JSON.stringify(users));
+  closeModal('profile-modal');
+  alert('✓ Profile updated!');
+}
+
+/* NEW: loading/success-state wrapper around saveProfile() */
+async function saveProfileUI() {
+  const btn = document.getElementById('save-profile-btn');
+  btn.classList.add('is-loading');
+  await saveProfile();
+  btn.classList.remove('is-loading');
+}
+
+/* NEW: photo upload — stored as a base64 data URL per user in
+   localStorage, so it's genuinely persisted, not just decorative. */
+function handleAvatarUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { alert('Please choose an image file'); return; }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const username = localStorage.getItem('tls_current_user');
+    const users = JSON.parse(localStorage.getItem('tls_users') || '{}');
+    users[username].avatar = e.target.result;
+    localStorage.setItem('tls_users', JSON.stringify(users));
+    paintAvatar(username);
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ---------- Tasks modal (unchanged core logic) ---------- */
+function openTasksModal() {
+  document.getElementById('add-task-form').classList.remove('active');
+  document.getElementById('task-assigndate').value = new Date().toISOString().split('T')[0];
+  loadTasks();
+  document.getElementById('tasks-modal').classList.add('active');
+}
+
+function toggleAddTaskForm() {
+  document.getElementById('add-task-form').classList.toggle('active');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function addTask() {
+  const title = document.getElementById('task-title').value.trim();
+  const assigned = document.getElementById('task-assigned').value.trim();
+  const assigndate = document.getElementById('task-assigndate').value;
+  const duedate = document.getElementById('task-duedate').value;
+  const priority = document.getElementById('task-priority').value;
+
+  if (!title || !assigned || !assigndate || !duedate || !priority) {
+    alert('All fields are required'); return;
+  }
+
+  const username = localStorage.getItem('tls_current_user');
+  const tasksKey = `tls_tasks_${username}`;
+  const tasks = JSON.parse(localStorage.getItem(tasksKey) || '[]');
+
+  tasks.push({
+    id: Date.now(), title, assigned, assigndate, duedate, priority,
+    status: 'inprogress', created: new Date().toISOString()
+  });
+
+  localStorage.setItem(tasksKey, JSON.stringify(tasks));
+
+  document.getElementById('task-title').value = '';
+  document.getElementById('task-assigned').value = '';
+  document.getElementById('task-duedate').value = '';
+  document.getElementById('task-priority').value = '';
+  document.getElementById('task-assigndate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('add-task-form').classList.remove('active');
+
+  loadTasks();
+}
+
+function openStatusChoice(taskId, taskTitle) {
+  currentStatusTaskId = taskId;
+  document.getElementById('status-task-title').textContent = taskTitle;
+  document.getElementById('status-modal').classList.add('active');
+}
+
+function confirmStatus(status) {
+  const username = localStorage.getItem('tls_current_user');
+  const tasksKey = `tls_tasks_${username}`;
+  const tasks = JSON.parse(localStorage.getItem(tasksKey) || '[]');
+  const task = tasks.find(t => t.id === currentStatusTaskId);
+  if (task) {
+    task.status = status;
+    localStorage.setItem(tasksKey, JSON.stringify(tasks));
+  }
+  closeModal('status-modal');
+  loadTasks();
+}
+
+/* Once completed, the checkbox is locked — this is unchanged behavior */
+function checkboxClicked(taskId, taskTitle, isCompleted) {
+  if (isCompleted) return;
+  openStatusChoice(taskId, taskTitle);
+}
+
+function deleteTask(id) {
+  const username = localStorage.getItem('tls_current_user');
+  const tasksKey = `tls_tasks_${username}`;
+  let tasks = JSON.parse(localStorage.getItem(tasksKey) || '[]');
+  tasks = tasks.filter(t => t.id !== id);
+  localStorage.setItem(tasksKey, JSON.stringify(tasks));
+  loadTasks();
+}
+
+/* NEW: small helper — human due-date countdown text */
+function dueCountdown(duedate, isCompleted) {
+  if (isCompleted) return { text: 'Completed', cls: 'ok' };
+  const due = new Date(duedate);
+  const today = new Date();
+  due.setHours(0,0,0,0); today.setHours(0,0,0,0);
+  const days = Math.round((due - today) / 86400000);
+  if (days < 0) return { text: `Overdue by ${Math.abs(days)}d`, cls: 'overdue' };
+  if (days === 0) return { text: 'Due today', cls: 'today' };
+  return { text: `${days}d left`, cls: 'ok' };
+}
+
+/* NEW: animate a stat number counting up, for a premium dashboard feel */
+function animateCounter(el, target) {
+  const start = parseInt(el.textContent) || 0;
+  if (start === target) { el.textContent = target; return; }
+  const duration = 500;
+  const startTime = performance.now();
+  function tick(now) {
+    const p = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(start + (target - start) * eased);
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+/* NEW: keeps the "My Tasks" action card badge in sync without
+   requiring the modal to be open. */
+function updateTaskPreviewBadge() {
+  const username = localStorage.getItem('tls_current_user');
+  if (!username) return;
+  const tasksKey = `tls_tasks_${username}`;
+  const tasks = JSON.parse(localStorage.getItem(tasksKey) || '[]');
+  const completed = tasks.filter(t => t.status === 'completed').length;
+  const badge = document.getElementById('task-preview-badge');
+  if (badge) badge.textContent = `${completed}/${tasks.length} done`;
+}
+
+/* ---------- Render task list (same data logic; richer markup) ---------- */
+function loadTasks() {
+  const username = localStorage.getItem('tls_current_user');
+  const tasksKey = `tls_tasks_${username}`;
+  const tasks = JSON.parse(localStorage.getItem(tasksKey) || '[]');
+  const list = document.getElementById('tasks-list');
+
+  list.innerHTML = '';
+  if (tasks.length === 0) {
+    list.innerHTML = '<div class="empty-state"><i data-lucide="clipboard-list"></i><br>No tasks yet. Click "Add new task" to create one.</div>';
+  }
+
+  tasks.slice().reverse().forEach(task => {
+    const div = document.createElement('div');
+    const isCompleted = task.status === 'completed';
+    div.className = `task-item priority-${task.priority} ${isCompleted ? 'completed' : ''}`;
+    const assignDate = new Date(task.assigndate).toLocaleDateString();
+    const cd = dueCountdown(task.duedate, isCompleted);
+    div.innerHTML = `
+      <div class="task-checkbox-wrap">
+        <input type="checkbox" class="task-checkbox" ${isCompleted ? 'checked disabled' : ''}
+               aria-label="Mark task status"
+               onclick="checkboxClicked(${task.id}, '${task.title.replace(/'/g, "\\'")}', ${isCompleted})">
+      </div>
+      <div class="task-details">
+        <div class="task-title">${task.title}</div>
+        <div class="task-meta">
+          <span><i data-lucide="user" class="meta-icon"></i>${task.assigned}</span>
+          <span><i data-lucide="calendar" class="meta-icon"></i>${assignDate}</span>
+          <span class="countdown-tag ${cd.cls}"><i data-lucide="clock" class="meta-icon"></i>${cd.text}</span>
+          <span class="task-badge ${task.priority}">${task.priority}</span>
+          ${isCompleted ? '<span class="task-badge status-completed"><i data-lucide="check" class="meta-icon"></i>Completed</span>' : ''}
+        </div>
+      </div>
+      <button class="task-delete" onclick="deleteTask(${task.id})" aria-label="Delete task"><i data-lucide="trash-2"></i></button>
+    `;
+    list.appendChild(div);
+  });
+
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.status === 'completed').length;
+  const inprogress = tasks.filter(t => t.status === 'inprogress').length;
+  const urgent = tasks.filter(t => t.priority === 'urgent' && t.status !== 'completed').length;
+
+  animateCounter(document.getElementById('stat-total'), total);
+  animateCounter(document.getElementById('stat-completed'), completed);
+  animateCounter(document.getElementById('stat-inprogress'), inprogress);
+  animateCounter(document.getElementById('stat-urgent'), urgent);
+
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  document.getElementById('overall-progress-fill').style.width = pct + '%';
+  document.getElementById('overall-progress-pct').textContent = pct + '%';
+
+  updateTaskPreviewBadge();
+  if (window.lucide) lucide.createIcons();
+}
+
+/* ---------- Logout (unchanged) ---------- */
+function logout() {
+  localStorage.removeItem('tls_current_user');
+  document.getElementById('auth-page').style.display = 'flex';
+  document.getElementById('dashboard-page').classList.remove('active');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  switchTab('login');
+}
+
+/* ==================================================================
+   NEW: supporting UI wiring — password show/hide, strength meter,
+   avatar dropdown, ESC-to-close, and boot-time restore.
+   None of this touches the functions above.
+   ================================================================== */
+
+/* Show/hide password toggles */
+document.querySelectorAll('.pw-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = document.getElementById(btn.dataset.target);
+    const isPw = input.type === 'password';
+    input.type = isPw ? 'text' : 'password';
+    btn.innerHTML = isPw ? '<i data-lucide="eye-off"></i>' : '<i data-lucide="eye"></i>';
+    btn.setAttribute('aria-label', isPw ? 'Hide password' : 'Show password');
+    if (window.lucide) lucide.createIcons();
+  });
+});
+
+/* Password strength meter (register password only) */
+const regPassEl = document.getElementById('reg-pass');
+if (regPassEl) {
+  regPassEl.addEventListener('input', () => {
+    const val = regPassEl.value;
+    const box = document.getElementById('pw-strength-box');
+    const fill = document.getElementById('pw-strength-fill');
+    const label = document.getElementById('pw-strength-label');
+
+    if (!val) { box.classList.remove('show'); return; }
+    box.classList.add('show');
+
+    let score = 0;
+    if (val.length >= 4) score++;
+    if (val.length >= 8) score++;
+    if (/[0-9]/.test(val) && /[a-zA-Z]/.test(val)) score++;
+    if (/[^a-zA-Z0-9]/.test(val)) score++;
+
+    const levels = [
+      { pct: 20, color: 'var(--danger)', text: 'Too short' },
+      { pct: 40, color: 'var(--danger)', text: 'Weak' },
+      { pct: 65, color: 'var(--accent)', text: 'Fair' },
+      { pct: 85, color: 'var(--secondary)', text: 'Good' },
+      { pct: 100, color: 'var(--success)', text: 'Strong' }
+    ];
+    const lvl = levels[score];
+    fill.style.width = lvl.pct + '%';
+    fill.style.background = lvl.color;
+    label.textContent = lvl.text;
+    label.style.color = lvl.color;
+  });
+}
+
+/* Avatar dropdown menu */
+function toggleAvatarMenu() {
+  const menu = document.getElementById('avatar-menu');
+  const isOpen = menu.classList.toggle('open');
+  menu.querySelector('.avatar-btn').setAttribute('aria-expanded', isOpen);
+}
+function closeAvatarMenu() {
+  document.getElementById('avatar-menu').classList.remove('open');
+}
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('avatar-menu');
+  if (menu && !menu.contains(e.target)) closeAvatarMenu();
+});
+
+/* Close any open modal on outside click (unchanged behavior, kept) */
+document.querySelectorAll('.modal').forEach(modal => {
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('active'); });
+});
+
+/* NEW: Escape key closes whichever modal is open */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+  }
+});
+
+/* Restore session on load (unchanged) + boot icons */
+window.addEventListener('load', () => {
+  if (window.lucide) lucide.createIcons();
+  const currentUser = localStorage.getItem('tls_current_user');
+  if (currentUser) showDashboard(currentUser);
+});
 </script>
 
 </body>
