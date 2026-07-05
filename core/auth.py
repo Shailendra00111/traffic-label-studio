@@ -52,14 +52,20 @@ def register_user(username: str, email: str, password: str) -> AuthResult:
         if existing.data:
             return AuthResult(False, "Username is already taken")
 
-        result = _supabase.auth.sign_up({"email": email, "password": password})
+        result = _supabase.auth.sign_up({
+            "email": email,
+            "password": password,
+            "options": {"data": {"username": username}},
+        })
         user = result.user
         if user is None:
             return AuthResult(False, "Registration failed. Please try again.")
 
-        _supabase.table("profiles").insert(
-            {"id": user.id, "username": username, "email": email}
-        ).execute()
+        # No manual insert here — a database trigger on auth.users
+        # creates the matching "profiles" row automatically, using the
+        # username passed above in options.data. This avoids a
+        # row-level-security race condition that can happen if we try
+        # to insert before the client's session is fully established.
 
         return AuthResult(True, "Account created successfully!")
     except Exception as e:
